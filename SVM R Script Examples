@@ -1,0 +1,274 @@
+#############################
+## Support Vector Machince ##
+##        Examples         ##
+#############################
+
+## libraries utilized
+##install.packages("tidyverse")
+library(tidyverse)
+##install.packages("kernlab")
+library(kernlab)
+##install.packages("e1071")
+library(e1071)
+##install.packages("ISLR")
+library(ISLR)
+##install.packages("RColorBrewer")
+library(RColorBrewer)
+##install.packages("caret")
+library(caret)
+
+
+##########################################################
+## Example One: The Basics understanding the concept    ##
+## Example has a clear and distinct separation          ##
+##########################################################
+
+## set seed for replication
+set.seed(50)
+
+## creates random data set of numbers
+x <- matrix(rnorm(n = 100*2), 
+            ncol = 2)
+## creates two sets of classes
+y <- c(rep(-1, 75),
+       rep(1, 25))
+## modifies one of the classes data to be extreme
+x[y == 1,] <- x[y == 1,] + 3/1.5
+## Combines X and Y objects
+dat <- data.frame(x = x,
+                  y = as.factor(y))
+
+## graphing the data
+ggplot(data = dat,
+       aes(x = x.2,
+           y = x.1,
+           color = y,
+           shape = y)) +
+        geom_point(size = 2) +
+        scale_color_manual(values=c("#000000",
+                                    "#FF0000")) + 
+        theme(legend.position="none")
+
+## SVM Fit using e1071 package
+svmfit <- svm(formula = y ~ ., 
+              data = dat,
+              kernel = "linear", 
+              scale = FALSE)
+
+## graphing where the cut off is
+plot(svmfit, dat)
+
+## SVM fit using kernlab package
+kernlab <- ksvm(x = x, 
+                y = y, 
+                type = "C-svc", 
+                kernel = 'vanilladot')
+
+plot(kernlab, data = x)
+
+## performance of model
+confusionMatrix(as.factor(predict(svmfit, 
+                                  dat)),
+                as.factor(y))
+
+###################################################
+## Example Two: The Basics Part II               ##
+## Example has no clear and distinct separation  ##
+###################################################
+
+## without any tuning
+
+## set seed for replication
+set.seed(100)
+
+## creates random data set of numbers
+x <- matrix(rnorm(n = 100*2), 
+            ncol = 2)
+## creates two sets of classes
+y <- c(rep(-1, 60),
+       rep(1, 40))
+## modifies one of the classes data to be extreme
+x[y == 1,] <- x[y == 1,] +1
+## Combines X and Y objects
+dat <- data.frame(x = x,
+                  y = as.factor(y))
+
+## graphing the data
+dat.plot <- ggplot(data = dat,
+                   aes(x = x.2,
+                       y = x.1,
+                       color = y,
+                       shape = y)) +
+        geom_point(size = 2) +
+        scale_color_manual(values=c("#000000",
+                                    "#FF0000")) + 
+        theme(legend.position="none")
+
+
+
+## SVM Fit using e1071 package
+svmfit <- svm(formula = y ~ ., 
+              data = dat,
+              kernel = "linear", 
+              scale = FALSE)
+
+## graphing where the cut off is
+plot(svmfit, dat)
+
+## SVM fit using kernlab package
+kernlab <- ksvm(x = x, 
+                y = y, 
+                type = "C-svc", 
+                kernel = 'vanilladot')
+
+plot(kernlab, data = x)
+
+## performance prior to tuning
+perform <- confusionMatrix(as.factor(predict(svmfit, 
+                                             dat)),
+                           as.factor(y))
+
+## tuning the model
+tune.out <- tune(svm,
+                 y ~ .,
+                 data = dat,
+                 kernel = "linear",
+                 ranges = list(cost = c(0.001, 0.01, 0.1, 1, 5, 10, 100)))
+
+## Performance after tunning
+perform.tune <- confusionMatrix(as.factor(predict(tune.out$best.model, 
+                                                  dat)),
+                                as.factor(y))
+
+## difference in accuarcy
+perform.tune$overall[1] - perform$overall[1]
+
+## difference in sensitivity
+perform.tune$byClass[1] - perform$byClass[1]
+
+## difference in specificity
+perform.tune$byClass[2] - perform$byClass[2]
+
+
+
+############################################
+## Example Three: The Non-linear Boundary ##
+############################################
+
+set.seed(123)
+
+x <- matrix(rnorm(200*2),
+            ncol=2)
+x[1:100,] <- x[1:100,] + 1.5
+x[101:150,] <- x[101:150,] - 3.5
+y <- c(rep(1,150),
+       rep(2,50))
+dat<-data.frame(x = x,
+                y = as.factor(y))
+
+dat.plot <- ggplot(data = dat,
+                   aes(x = x.2,
+                       y = x.1,
+                       color = y,
+                       shape = y)) +
+        geom_point(size = 2) +
+        scale_color_manual(values=c("#000000",
+                                    "#FF0000")) + 
+        theme(legend.position="none")
+dat.plot
+
+
+# sample training data and fit model
+train <- base::sample(x = 200, 
+                      size = 100,
+                      replace=FALSE)
+svmfit<-svm(y~.,
+            data=dat[train,],
+            kernel="radial",
+            gamma=1,
+            cost=1)
+
+# plot classifier
+plot(svmfit,dat)
+
+
+#Fit radial-based SVM in kernlab
+kernfit <- ksvm(x[train,],
+                y[train],
+                type = "C-svc",
+                kernel = 'rbfdot',
+                C = 1,
+                scaled = c())
+
+# Plot training data
+plot(kernfit,data = x[train,])
+
+## tuning
+tune.out <- tune(svm,
+                 y~.,
+                 data = dat[train,],
+                 kernel = "radial",
+                 ranges = list(cost = c(0.1, 1, 10, 100, 1000),
+                               gamma=c(0.5, 1, 2, 3, 4)))
+
+
+## Performance after tunning
+perform.tune <- confusionMatrix(as.factor(predict(svmfit, 
+                                                  dat)),
+                                as.factor(y))
+
+
+## Performance after tunning
+perform.tune <- confusionMatrix(as.factor(predict(tune.out$best.model, 
+                                                  dat)),
+                                as.factor(y))
+
+perform
+perform.tune
+
+## difference in accuarcy
+perform.tune$overall[1] - perform$overall[1]
+
+## difference in sensitivity
+perform.tune$byClass[1] - perform$byClass[1]
+
+## difference in specificity
+perform.tune$byClass[2] - perform$byClass[2]
+
+
+##################################
+## Example Four: Multiple Cases ##
+##################################
+
+## construct data set
+x <-rbind(x,
+          matrix(rnorm(50*2),
+                 ncol=2))
+y<-c(y,rep(0,50))
+x[y==0,2]<-x[y==0,2]+2.5
+dat<-data.frame(x=x,y=as.factor(y))
+
+# plot data set
+ggplot(data=dat,
+       aes(x=x.2,
+           y=x.1,
+           color=y,shape=y))+
+        geom_point(size=2)+
+        scale_color_manual(values=c("#000000","#FF0000","#00BA00"))+
+        theme(legend.position="none")
+
+# fit model
+svmfit <- svm(y~.,
+              data=dat,
+              kernel="radial",
+              cost=10,
+              gamma=1)
+
+# plot results
+plot(svmfit,dat)
+
+table(predicted = predict(svmfit, dat), observed = dat$y)
+
+## accuracy
+sum(diag(table(predicted = predict(svmfit, dat), observed = dat$y))) / nrow(dat)
+
